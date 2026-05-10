@@ -2,6 +2,7 @@
 #include "pi.h"
 #include "responses.h"
 #include "utils.h"
+#include "logger.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +28,7 @@ int welcome(ftp_session_t *sess) {
 
   // Send initial FTP welcome message
   if (safe_dprintf(sess->control_sock, MSG_220) != sizeof(MSG_220) - 1) {
-    fprintf(stderr, "Send error\n");
+    LOG_ERROR("Send error during welcome message");
     close_fd(sess->control_sock, "cliente socket");
     return -1;
   }
@@ -41,13 +42,14 @@ int getexe_command(ftp_session_t *sess) {
   // Receive string from CC
   ssize_t len = recv(sess->control_sock, buffer, sizeof(buffer) - 1, 0);
   if (len < 0) {
-    perror("Receive fail: ");
+    LOG_ERROR("Receive fail: %m");
     close_fd(sess->control_sock, "cliente socket");
     return -1;
   }
 
   // The connection was closed improperly and we close it
   if (len == 0) {
+    LOG_INF("Control connection closed by client");
     sess->current_user[0] = '\0'; // Close session
     close_fd(sess->control_sock, "client socket"); // Close socket
     sess->control_sock = -1;
@@ -82,12 +84,14 @@ int getexe_command(ftp_session_t *sess) {
   ftp_command_t *entry = ftp_commands;
   while (entry->name) {
     if (strcasecmp(entry->name, cmd) == 0) {
+      LOG_INF("Command received: %s", cmd);
       entry->handler(arg ? arg : "");
       return (sess->control_sock < 0) ? -1 : 0;
     }
     entry++;
   }
 
+  LOG_INF("Unrecognized command: %s", cmd);
   safe_dprintf(sess->control_sock, "502 Command not implemented.\r\n");
   return 0;
 }

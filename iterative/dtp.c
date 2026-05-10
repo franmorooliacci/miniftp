@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "dtp.h"
+#include "logger.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -16,7 +17,7 @@ int check_credentials(char *user, char *pass) {
   // check if it is present in any ftpusers line
   file = fopen(path, "r");
   if (file == NULL) {
-    fprintf(stderr, "Error: no se pudo abrir el archivo de usuarios.\n");
+    LOG_ERROR("Error: no se pudo abrir el archivo de usuarios: %m");
     return -1;
   }
 

@@ -4,11 +4,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-#include <sys/wait.h>   // for pid_t
+#include <sys/wait.h>    // for pid_t
 
 #include "signals.h"
 #include "session.h"    // for current_sess
 #include "utils.h"      // for close_fd()
+#include "logger.h"
 
 int server_socket = -1;
 
@@ -18,16 +19,16 @@ static void handle_sigint(int sig) {
 
 
   if (in_handler) {
-    fprintf(stderr, "SIGINT handler reentered!\n");
+    LOG_WRN("SIGINT handler reentered!");
     return; // Avoid running handler twice concurrently
   }
   in_handler = 1;
 
   static int sigint_count = 0;
-  fprintf(stderr, "SIGINT handler called (count = %d) in PID %d\n", ++sigint_count, getpid());
+  LOG_INF("SIGINT handler called (count = %d) in PID %d", ++sigint_count, getpid());
 
-  printf("[+] SIGINT received. Shutting down...\n");
-  fflush(stdout);
+  LOG_INF("SIGINT received. Shutting down...");
+  // fflush(stdout); // Removed as it's no longer applicable to syslog
 
   // Close listening socket
   if (server_socket >= 0) {
@@ -41,7 +42,7 @@ static void handle_sigint(int sig) {
   sigemptyset(&blockset);
   sigaddset(&blockset, SIGINT);
   if (sigprocmask(SIG_BLOCK, &blockset, &oldset) < 0) {
-    perror("sigprocmask");
+    LOG_ERROR("sigprocmask: %m");
   }
 
   // Restore previous signal mask (optional here since we're exiting)
@@ -57,12 +58,12 @@ static void handle_sigterm(int sig) {
 
   static volatile sig_atomic_t in_handler = 0;
   if (in_handler) {
-    fprintf(stderr, "SIGTERM handler reentered!\n");
+    LOG_WRN("SIGTERM handler reentered!");
     return;
   }
   in_handler = 1;
 
-  fprintf(stderr, "[+] SIGTERM received. Shutting down (PID %d)...\n", getpid());
+  LOG_INF("SIGTERM received. Shutting down (PID %d)...", getpid());
 
   // Close listening socket if open
   if (server_socket >= 0) {
@@ -76,7 +77,7 @@ static void handle_sigterm(int sig) {
 void setup_signals(void) {
   struct sigaction sa;
 
-  printf("[DEBUG] Setting up signal handlers in PID %d\n", getpid());
+  LOG_INF("Setting up signal handlers in PID %d", getpid());
 
   // Setup SIGINT and SIGTERM for parent
 
@@ -89,16 +90,16 @@ void setup_signals(void) {
 
   // Handle SIGINT
   if (sigaction(SIGINT, &sa, NULL) == -1) {
-    perror("sigaction SIGINT");
+    LOG_ERROR("sigaction SIGINT: %m");
     exit(EXIT_FAILURE);
   }
-  printf("[DEBUG] SIGINT handler installed in PID %d\n", getpid());
+  LOG_INF("SIGINT handler installed in PID %d", getpid());
 
   // Handle SIGTERM, same mask and flags, but different handler
   sa.sa_handler = handle_sigterm;
 
   if (sigaction(SIGTERM, &sa, NULL) == -1) {
-    perror("sigaction SIGTERM");
+    LOG_ERROR("sigaction SIGTERM: %m");
     exit(EXIT_FAILURE);
   }
 }
