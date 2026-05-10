@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -std=gnu11 -g
 LDFLAGS =
 
-SRCS = main.c arguments.c server.c utils.c pi.c dtp.c handlers.c signals.c session.c
+SRCS = main.c arguments.c server.c utils.c pi.c dtp.c handlers.c signals.c session.c logger.c
 OBJS = $(SRCS:.c=.o)
 TARGET = miniftp
 
