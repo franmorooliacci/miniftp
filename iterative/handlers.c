@@ -86,7 +86,13 @@ void handle_PORT(const char *args) {
   (void)args;
   (void)sess;
 
-  // Placeholder
+  int port;
+  char ip[16];
+
+  LOG_INF("DEBUG: %s\n", args);
+  get_info_from_port(args, ip, &port);
+  LOG_INF("DEBUG: ip: %s port: %d\n", ip, port);
+  safe_dprintf(sess->control_sock, MSG_200);
 }
 
 void handle_RETR(const char *args) {

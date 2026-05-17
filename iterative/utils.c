@@ -27,3 +27,35 @@ ssize_t safe_dprintf(int fd, const char *format, ...) {
   }
   return ret;
 }
+
+int get_info_from_port(const char *cmd, char *ip, int *port){
+  int h1, h2, h3, h4;
+  int p1, p2;
+
+  if(cmd == NULL || ip == NULL || port == NULL)
+    return -1;
+
+  if(sscanf(cmd,
+            "%d,%d,%d,%d,%d,%d",
+            &h1, &h2, &h3, &h4,
+            &p1, &p2) != 6)
+  {
+    return -1;
+  }
+
+  if(h1 < 0 || h1 > 255 ||
+     h2 < 0 || h2 > 255 ||
+     h3 < 0 || h3 > 255 ||
+     h4 < 0 || h4 > 255 ||
+     p1 < 0 || p1 > 255 ||
+     p2 < 0 || p2 > 255)
+  {
+    return -1;
+  }
+
+  sprintf(ip, "%d.%d.%d.%d", h1, h2, h3, h4);
+
+  *port = (p1 * 256) + p2;
+
+  return 0;
+} 
