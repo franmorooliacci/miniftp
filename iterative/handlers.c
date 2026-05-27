@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 void handle_USER(const char *args) {
   ftp_session_t *sess = session_get();
@@ -78,29 +79,59 @@ void handle_TYPE(const char *args) {
   (void)args;
   (void)sess;
 
+  safe_dprintf(sess->control_sock, MSG_200);
   // Placeholder
 }
 
 void handle_PORT(const char *args) {
   ftp_session_t *sess = session_get();
-  (void)args;
-  (void)sess;
 
   int port;
-  char ip[16];
+  char ip[INET_ADDRSTRLEN];
 
-  LOG_INF("DEBUG: %s\n", args);
-  get_info_from_port(args, ip, &port);
-  LOG_INF("DEBUG: ip: %s port: %d\n", ip, port);
+  if (get_info_from_port(args, ip, &port) < 0) {
+    safe_dprintf(sess->control_sock, MSG_501);
+    return;
+  }
+
+  memset(&sess->data_addr, 0, sizeof(sess->data_addr));
+  sess->data_addr.sin_family = AF_INET;
+  sess->data_addr.sin_port = htons(port);
+  if (inet_pton(AF_INET, ip, &sess->data_addr.sin_addr) < 0) {
+    safe_dprintf(sess->control_sock, MSG_501);
+    return;
+  }
+
   safe_dprintf(sess->control_sock, MSG_200);
 }
 
 void handle_RETR(const char *args) {
   ftp_session_t *sess = session_get();
-  (void)args;
-  (void)sess;
+  int fd;
 
-  // Placeholder
+  if (!sess->logged_in) {
+    safe_dprintf(sess->control_sock, MSG_530);
+    return;
+  }
+
+  if (!args || strlen(args) == 0) {
+    safe_dprintf(sess->control_sock, MSG_501);
+    return;
+  }
+
+  safe_dprintf(sess->control_sock, MSG_150);
+
+  if ((fd = dtp_open(args)) < 0) {
+    safe_dprintf(sess->control_sock, MSG_550, "file unavailable");
+    return;
+  }
+
+  if (dtp_send(sess, fd) < 0) {
+    safe_dprintf(sess->control_sock, MSG_451);
+    return;
+  }
+
+  safe_dprintf(sess->control_sock, MSG_226);
 }
 
 void handle_STOR(const char *args) {
@@ -114,7 +145,7 @@ void handle_STOR(const char *args) {
 void handle_NOOP(const char *args) {
   ftp_session_t *sess = session_get();
   (void)args;
-  (void)sess;
 
+  safe_dprintf(sess->control_sock, MSG_200);
   // Placeholder
 }
